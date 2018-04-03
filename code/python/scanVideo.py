@@ -75,13 +75,13 @@ def openVideo(file):
     Num_frame = 1;
     ret, frame  =cap.read();
     shape = frame.shape
-    while(cap.isOpened()):
-        ret, frame  =cap.read();
-        if ret == False:
-            break;
-        Num_frame += 1
-    cap.release()
-    cap = cv2.VideoCapture(file);
+#    while(cap.isOpened()):
+#        ret, frame  =cap.read();
+#        if ret == False:
+#            break;
+#        Num_frame += 1
+#    cap.release()
+#    cap = cv2.VideoCapture(file);
     return cap, Num_frame, shape
 
 def resizeFrame(frame, shape, coefficient):
@@ -91,7 +91,7 @@ def resizeFrame(frame, shape, coefficient):
 
 def showFrame(name, frame):
     cv2.imshow(name, frame);
-    cv2.waitKey(20);
+    cv2.waitKey(5);
     #if(keycode == 27):
     #   break;
 
@@ -134,11 +134,16 @@ def rgbDivide(frame):
     r_sum = math.log(r.mean()) * Size * Size;
     return b_sum, g_sum, r_sum
 
-if __name__ == '__main__':
+def AnalysisVideo(eachList):
+
+    ExcelName, VideoName, storageName = reconstructList(eachList);
+    print(ExcelName);
+    print(VideoName);
+    print(storageName);
     # read video and excel file
-    _, force = readExcel('../../ForceData/ForceTest.xlsx');
+    _, force = readExcel(ExcelName);                        #'../../ForceData/ForceTest.xlsx');
     force_array, force_len = reformForceData(force);
-    cap, numFrame, shape = openVideo('../../VideoData/VideoTest.MOV');
+    cap, numFrame, shape = openVideo(VideoName);            #'../../VideoData/VideoTest.MOV');
     # init some params
     frame_num= 0;
     b_array = [];
@@ -162,18 +167,51 @@ if __name__ == '__main__':
         b_array.append(b);
         g_array.append(g);
         r_array.append(r);
-        print("ID: %d b is %d, g is %d, r is %d\n"  %(frame_num, b, g, r));
-        #showFrame('Frame', frame);
+        #print("ID: %d b is %d, g is %d, r is %d\n"  %(frame_num, b, g, r));
+        showFrame('Frame', frame);
         #showFrame('ROI', imageROI);
-
-    CombinedData = dataCombine(force_array, b_array, g_array, r_array, force_len, frame_num);
-    DataArray=np.array(CombinedData);
-    DataArray.sort();
-    curveFit(DataArray);
+    
+    force_array, g_array, b_array, r_array = alignForceWithVideo(force_array, g_array, b_array, r_array);
+    CombinedData = dataCombine(force_array, b_array, g_array, r_array, len(force_array), len(g_array));
+    #DataArray=np.array(CombinedData);
+    #DataArray.sort();
+    #curveFit(DataArray);
     #DrawPlot(DataArray);
     
     print("len of force is %d, rgb is %d\n" %(len(force_array), len(b_array)));
     dataframe = pd.DataFrame({'force':CombinedData[0],'b':CombinedData[1],'g':CombinedData[2],'r':CombinedData[3]});
-    dataframe.to_csv("VideoTest.csv",index=False,sep=',');
+    dataframe.to_csv(storageName,index=False,sep=',');
 
+def alignForceWithVideo(force_array, g_array,b_array, r_array):
+    max_force_array = force_array.index(max(force_array[0:350]));
+    max_g_array = g_array.index(max(g_array[0:350]));
+    print(max_force_array);
+    print(max_g_array);
+    force_array = force_array[max_force_array + FrameHZ:len(force_array)-1];
+    length = len(g_array)
+    g_array = g_array[max_g_array + FrameHZ:length-1];
+    b_array = b_array[max_g_array + FrameHZ:length-1];
+    r_array = r_array[max_g_array + FrameHZ:length-1];
+    return force_array, g_array, b_array, r_array;
 
+def readListFile(listFile):
+    lines = [];
+    with open(listFile, 'r') as f:
+        while True:
+            line = f.readline()     # 逐行读取
+            if not line:
+                break;
+            line=line.strip('\n')
+            lines.append(line);
+    return lines
+
+def reconstructList(eachList):
+    ExcelName = "../../ForceData/" + eachList + ".xlsx";
+    VideoName = "../../VideoData/" + eachList + ".MOV";
+    storageName = eachList + ".csv";
+    return ExcelName, VideoName, storageName
+    
+if __name__ == '__main__':
+    listFile = readListFile("lists.txt");
+    for i in range(len(listFile)):
+        AnalysisVideo(listFile[i]);
