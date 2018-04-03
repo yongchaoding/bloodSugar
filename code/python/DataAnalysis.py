@@ -40,7 +40,7 @@ if __name__ == '__main__':
     force = [];
     light_g = [];
     listFile = scanVideo.readListFile("lists.txt");
-
+    plt.figure(1);
     for i in range(len(listFile)):
        force, g_light, _,_ = csvRead(listFile[i]);
        plt.plot(force, g_light, '.');
